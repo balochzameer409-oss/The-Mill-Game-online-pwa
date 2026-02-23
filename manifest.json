@@ -1,4 +1,5 @@
 {
+  "id": "mill-game-pwa",
   "name": "The Mill Game - مِل گیم",
   "short_name": "Mill Game",
   "description": "اردو مِل گیم - آن لائن اور آف لائن کھیلیں",
@@ -21,13 +22,13 @@
       "src": "/The-Mill-Game-online-pwa/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     },
     {
       "src": "/The-Mill-Game-online-pwa/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
     }
   ],
   "categories": ["games", "entertainment"],
