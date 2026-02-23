@@ -1,50 +1,48 @@
-// The Mill Game - Service Worker
-const CACHE_NAME = 'mill-game-v1';
+// The Mill Game - Service Worker v2
+const CACHE_NAME = 'mill-game-v2';
+const BASE_PATH = '/The-Mill-Game-online-pwa';
+
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png',
+  BASE_PATH + '/',
+  BASE_PATH + '/index.html',
+  BASE_PATH + '/manifest.json',
+  BASE_PATH + '/icon-192.png',
+  BASE_PATH + '/icon-512.png',
   'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/webfonts/fa-solid-900.woff2',
 ];
 
-// Install Event - Cache assets
+// Install
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Caching files');
-      // Cache local files, ignore failures for CDN
-      return cache.addAll(['/index.html', '/manifest.json']).catch(() => {});
+      return cache.addAll([
+        BASE_PATH + '/index.html',
+        BASE_PATH + '/manifest.json',
+        BASE_PATH + '/icon-192.png',
+        BASE_PATH + '/icon-512.png',
+      ]).catch(() => {});
     })
   );
   self.skipWaiting();
 });
 
-// Activate Event - Clean old caches
+// Activate
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => {
-            console.log('[SW] Deleting old cache:', key);
-            return caches.delete(key);
-          })
+        keys.filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
       );
     })
   );
   self.clients.claim();
 });
 
-// Fetch Event - Network First, then Cache
+// Fetch - Network First, Cache Fallback
 self.addEventListener('fetch', (event) => {
-  // Skip Firebase requests - always go to network
-  if (event.request.url.includes('firebase') || 
+  // Skip Firebase
+  if (event.request.url.includes('firebase') ||
       event.request.url.includes('firebaseio') ||
       event.request.url.includes('googleapis')) {
     return;
@@ -53,42 +51,21 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses
         if (response && response.status === 200) {
-          const responseClone = response.clone();
+          const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
+            cache.put(event.request, clone);
           });
         }
         return response;
       })
       .catch(() => {
-        // Network failed, try cache
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Return offline page for HTML requests
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
           if (event.request.headers.get('accept').includes('text/html')) {
-            return caches.match('/index.html');
+            return caches.match(BASE_PATH + '/index.html');
           }
         });
       })
-  );
-});
-
-// Push Notifications (future use)
-self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const options = {
-    body: data.body || 'نئی notification',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    vibrate: [200, 100, 200],
-    dir: 'rtl',
-    lang: 'ur'
-  };
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Mill Game', options)
   );
 });
