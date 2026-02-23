@@ -12,20 +12,20 @@
   "dir": "rtl",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/The-Mill-Game-online-pwa/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icon-512.png",
+      "src": "/The-Mill-Game-online-pwa/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     },
     {
-      "src": "apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "/The-Mill-Game-online-pwa/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
