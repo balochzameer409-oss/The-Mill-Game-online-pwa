@@ -1,5 +1,5 @@
 // The Mill Game - Service Worker v2
-const CACHE_NAME = 'mill-game-v2';
+const CACHE_NAME = 'mill-game-v3';
 const BASE_PATH = '/The-Mill-Game-online-pwa';
 
 const ASSETS_TO_CACHE = [
@@ -41,10 +41,12 @@ self.addEventListener('activate', (event) => {
 
 // Fetch - Network First, Cache Fallback
 self.addEventListener('fetch', (event) => {
-  // Skip Firebase
+  // Skip Firebase and API calls
   if (event.request.url.includes('firebase') ||
       event.request.url.includes('firebaseio') ||
-      event.request.url.includes('googleapis')) {
+      event.request.url.includes('googleapis') ||
+      event.request.url.includes('openrouter.ai') ||
+      event.request.url.includes('anthropic.com')) {
     return;
   }
 
