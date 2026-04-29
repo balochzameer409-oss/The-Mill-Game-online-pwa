@@ -2781,6 +2781,8 @@ function updateGameState() {
                 gameRoomId = null;
                 playerNumber = null;
                 gameRef = null;
+                chatListenerActive = false;
+                unreadChatCount = 0;
                 document.getElementById('p1-online').innerHTML = '';
                 document.getElementById('p2-online').innerHTML = '';
                 document.getElementById('lobbyModal').style.display = 'flex';
@@ -3498,10 +3500,27 @@ function setupVoiceEventListeners() {
 }
 
 function onOnlineGameStart() {
-    
-    
     document.getElementById('chatToggleBtn').style.display = 'flex';
-    
+
+    // Audio unlock — browser کا rule: پہلے user interaction چاہیے
+    // ایک خاموش آواز چلاتے ہیں تاکہ audio context unlock ہو
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const buf = ctx.createBuffer(1, 1, 22050);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(ctx.destination);
+        src.start(0);
+        // تمام audio files preload کریں
+        Object.values(audio).forEach(a => {
+            if (a) { a.load(); }
+        });
+    } catch(e) {}
+
+    // chat listener reset کریں تاکہ نئی game میں کام کرے
+    chatListenerActive = false;
+    unreadChatCount = 0;
+
     setupVoiceEventListeners();
     setupVoiceSignalListener();
     setupChatListener();
@@ -3759,7 +3778,8 @@ function appendChatMessage(msg) {
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
     
-    if ((panel.style.display === 'none' || panel.style.display === '') && msg.sender !== playerNumber) {
+    const panelOpen = panel.style.display === 'flex';
+    if (!isMe && !panelOpen) {
         // کاؤنٹر اپڈیٹ
         unreadChatCount++;
         const dot = document.getElementById('chatUnreadDot');
@@ -3775,6 +3795,9 @@ function appendChatMessage(msg) {
         } else {
             showChatPopup(msg.name, '🎤 وائس میسج');
         }
+    } else if (!isMe && panelOpen) {
+        // panel کھلا ہے — صرف آواز بجاؤ
+        playChatSound();
     }
 }
 
