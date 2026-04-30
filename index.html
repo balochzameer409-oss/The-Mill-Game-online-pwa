@@ -1255,7 +1255,10 @@ iframe[src*="appsgeyser"] {
 </div>
 
     <div class="game-container">
-        <div class="game-status" id="phaseIndicator">مرحلہ: گوٹیاں رکھنا</div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:8px;">
+            <div class="game-status" id="phaseIndicator" style="flex:1;">مرحلہ: گوٹیاں رکھنا</div>
+            <div id="spectatorEye" style="display:none; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.25); border-radius:12px; padding:3px 8px; font-size:13px; white-space:nowrap; color:white;">👁️ <span id="spectatorCount">0</span></div>
+        </div>
         
 
         
@@ -1627,6 +1630,8 @@ window.addEventListener('load', () => {
         
         let isOnlineMode = false;
         let onlineGameStarted = false;
+        let isSpectator = false;
+        let spectatorId = null;
         let isAIMode = false;
         let aiThinking = false;
         let aiExecuting = false;
@@ -1759,30 +1764,42 @@ function joinGame() {
         }
         
         const gameData = snapshot.val();
-        if (gameData.player2) {
-            showNotification('یہ گیم پہلے سے بھری ہوئی ہے', 'error');
-            playSound('error');
-            playerNumber = null;
-            isOnlineMode = false;
-            resetBtn();
+
+        // Player 2 کی جگہ خالی ہے؟
+        if (!gameData.player2) {
+            playerNumber = 2;
+            gameRef.update({
+                'player2': { name: playerName, connected: true },
+                'voiceSignal': null
+            }).then(() => {
+                resetBtn();
+                document.getElementById('lobbyModal').style.display = 'none';
+                listenToGameChanges();
+                onOnlineGameStart();
+                showNotification('گیم شروع! آپ کھلاڑی ہیں ⚔️', 'success');
+                playSound('click');
+            });
             return;
         }
-        
-        playerNumber = 2;
-        
-        gameRef.update({
-            'player2': {
-                name: playerName,
-                connected: true
-            },
-            'voiceSignal': null
+
+        // دونوں جگہیں بھری ہیں — تماشائی بنو 🦥
+        isSpectator = true;
+        playerNumber = null;
+
+        const specId = 'spec_' + Date.now();
+        spectatorId = specId;
+
+        gameRef.child('spectators/' + specId).set({
+            name: playerName,
+            joined: Date.now()
         }).then(() => {
             resetBtn();
             document.getElementById('lobbyModal').style.display = 'none';
             listenToGameChanges();
-            
-            onOnlineGameStart();
-            showNotification('گیم شروع! آپ Player 2 ہیں', 'success');
+            setupChatListener();
+            document.getElementById('chatToggleBtn').style.display = 'flex';
+            showSpectatorUI();
+            showNotification('آپ تماشائی ہیں 🦥 بیٹھ کر دیکھیں!', 'info');
             playSound('click');
         });
     });
@@ -2061,7 +2078,52 @@ function joinGame() {
                 if (gameData.board) {
                     syncGameState(gameData);
                 }
+
+                // تماشائی کے لیے spectators list اپڈیٹ
+                if (isSpectator || playerNumber === 1 || playerNumber === 2) {
+                    updateSpectatorList(gameData.spectators);
+                }
             });
+        }
+
+        function showSpectatorUI() {
+            showSpectatorToast();
+        }
+
+        function showSpectatorToast() {
+            let toast = document.getElementById('spectatorToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'spectatorToast';
+                toast.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:9999;background:linear-gradient(135deg,#1a2a6c,#b21f1f);color:gold;font-size:15px;font-weight:bold;padding:10px 24px;border-radius:20px;border:2px solid gold;box-shadow:0 4px 15px rgba(0,0,0,0.5);text-align:center;transition:opacity 0.5s ease;white-space:nowrap;';
+                toast.innerHTML = '🦥 آپ تماشائی ہیں — بیٹھ کر دیکھیں!';
+                document.body.appendChild(toast);
+            }
+            toast.style.opacity = '1';
+            toast.style.display = 'block';
+            clearTimeout(window._specToastTimer);
+            window._specToastTimer = setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => { toast.style.display = 'none'; }, 500);
+            }, 3000);
+        }
+
+        function updateSpectatorList(spectators) {
+            const eye = document.getElementById('spectatorEye');
+            const countEl = document.getElementById('spectatorCount');
+            if (!eye || !countEl) return;
+            if (!spectators) {
+                eye.style.display = 'none';
+                return;
+            }
+            const count = Object.keys(spectators).length;
+            if (count === 0) {
+                eye.style.display = 'none';
+            } else {
+                eye.style.display = 'flex';
+                eye.style.alignItems = 'center';
+                countEl.textContent = count;
+            }
         }
 
         function updateOnlineStatus() {
@@ -2240,7 +2302,13 @@ function updateGameState() {
         }
 
         function handlePointClick(pos) {
-    
+
+    // تماشائی move نہیں کر سکتا 🦥
+    if (isSpectator) {
+        showSpectatorToast();
+        return;
+    }
+
     if (isOnlineMode) {
         if (currentPlayer !== playerNumber) {
             showNotification('آپ کی باری نہیں ہے - انتظار کریں', 'error');
@@ -2785,6 +2853,12 @@ function updateGameState() {
                 chatListenerActive = false;
                 unreadChatCount = 0;
                 onlineGameStarted = false;
+                isSpectator = false;
+                spectatorId = null;
+                const toast = document.getElementById('spectatorToast');
+                if (toast) toast.style.display = 'none';
+                const eye = document.getElementById('spectatorEye');
+                if (eye) eye.style.display = 'none';
                 if (chatListenerRef) {
                     chatListenerRef.off('child_added');
                     chatListenerRef = null;
