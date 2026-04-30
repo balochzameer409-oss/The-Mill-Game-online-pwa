@@ -1626,6 +1626,7 @@ window.addEventListener('load', () => {
 
         
         let isOnlineMode = false;
+        let onlineGameStarted = false;
         let isAIMode = false;
         let aiThinking = false;
         let aiExecuting = false;
@@ -2041,12 +2042,12 @@ function joinGame() {
                 const gameData = snapshot.val();
                 if (!gameData) return;
 
-                if (gameData.player2 && playerNumber === 1) {
+                if (gameData.player2 && playerNumber === 1 && !onlineGameStarted) {
+                    onlineGameStarted = true;
                     opponentName = gameData.player2.name;
                     document.getElementById('lobbyModal').style.display = 'none';
                     showNotification('دوسرا کھلاڑی شامل ہو گیا!', 'success');
                     updateOnlineStatus();
-                    
                     onOnlineGameStart();
                     playSound('click');
                 }
@@ -2783,6 +2784,11 @@ function updateGameState() {
                 gameRef = null;
                 chatListenerActive = false;
                 unreadChatCount = 0;
+                onlineGameStarted = false;
+                if (chatListenerRef) {
+                    chatListenerRef.off('child_added');
+                    chatListenerRef = null;
+                }
                 document.getElementById('p1-online').innerHTML = '';
                 document.getElementById('p2-online').innerHTML = '';
                 document.getElementById('lobbyModal').style.display = 'flex';
@@ -3711,17 +3717,25 @@ function sendChatMessage() {
 }
 
 let chatListenerActive = false;
+let chatListenerRef = null; // پرانا listener یاد رکھیں
+
 function setupChatListener() {
-    if (!gameRef || chatListenerActive) return;
+    if (!gameRef) return;
+
+    // پرانا listener ہٹاؤ
+    if (chatListenerRef) {
+        chatListenerRef.off('child_added');
+        chatListenerRef = null;
+    }
     chatListenerActive = true;
-    
-    
+
     const startTime = Date.now();
-    
-    gameRef.child('chatMessages').on('child_added', (snapshot) => {
+    chatListenerRef = gameRef.child('chatMessages');
+
+    chatListenerRef.on('child_added', (snapshot) => {
         const msg = snapshot.val();
         if (!msg) return;
-        if (msg.time < startTime - 5000) return; 
+        if (msg.time < startTime - 5000) return;
         appendChatMessage(msg);
     });
 }
